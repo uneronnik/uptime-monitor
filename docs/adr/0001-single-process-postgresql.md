@@ -38,3 +38,22 @@ limits what outages can be observed.
 
 Use GitHub Flow for changes. Automated checks validate changes; publishing
 containers, deploying the service, and merging PRs remain separate operations.
+
+## Alternatives considered
+
+- Separate API, scheduler, and worker services with a message broker: adds
+  deployment and coordination requirements before the single-owner MVP needs them.
+- In-memory scheduling and notification state: simpler initially, but loses work
+  and incident context across restarts.
+- A framework router or an external migration executable: unnecessary for the
+  initial REST scope; standard HTTP tooling and a Go migration command keep the
+  toolchain small. pgxpool provides PostgreSQL connection pooling; goose manages
+  migration versions rather than introducing custom migration tracking.
+
+## Related documents
+
+- [Product specification](../PLAN.md)
+- [Decision index](README.md)
+- [Access and outbound request policy](0002-owner-access-and-public-targets.md)
+- [Scheduling and check semantics](0003-bounded-scheduling-and-check-semantics.md)
+- [Incident and notification policy](0004-incidents-and-notification-delivery.md)
