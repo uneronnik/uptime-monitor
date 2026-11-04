@@ -1,6 +1,8 @@
 # Uptime Monitor MVP
 
-Status: specification only. No application features are implemented yet.
+Status: application foundation implemented. HTTP health, environment validation,
+structured logging, bounded HTTP handling, and graceful shutdown are available.
+Monitoring, storage, management, readiness, and delivery remain unimplemented.
 
 ## Product scope
 
@@ -89,8 +91,9 @@ The [ADR index](adr/README.md) maps the current design to its rationale.
 
 ### 1. Application foundation and monitor management
 
-- [ ] Pin Go and dependency versions; add configuration validation, logging,
-  health/readiness behavior, bounded request handling, and graceful shutdown.
+- [x] Pin Go; add configuration validation, logging, health behavior, bounded
+  request handling, and graceful shutdown using only the standard library.
+- [ ] Add dependency versions and readiness checks alongside PostgreSQL storage.
 - [ ] Add PostgreSQL, Compose, a standalone goose migration command, and storage.
 - [ ] Define owner authentication in an ADR; implement authenticated monitor
   create/read/update/pause/resume/delete endpoints with input and body limits.
@@ -99,6 +102,22 @@ The [ADR index](adr/README.md) maps the current design to its rationale.
 Acceptance: invalid configuration fails safely; unauthorized requests are denied;
 CRUD and pause/resume persist across restart; migrations are repeatable without
 data loss; integration tests execute in CI. No probes run in this stage.
+
+Implemented foundation contract: Go 1.27.0, `HTTP_ADDR` (default loopback port
+8080), `SHUTDOWN_TIMEOUT` (default 10s, positive and at most 1m), and `LOG_LEVEL`
+(DEBUG/INFO/WARN/ERROR). Explicit empty values are invalid. Bind addresses use
+literal IPs or an empty host and ports 1–65535. Errors never echo input values.
+`GET /healthz` returns 200 JSON `{"status":"ok"}`; HEAD omits the body, unsupported
+methods return 405, and request bodies (including unknown-length bodies) return
+413. Unknown paths return 404. There is no readiness route yet.
+HTTP limits and executable commands are documented in the [README](../README.md).
+SIGINT/SIGTERM stop new connections and drain requests within the configured
+deadline; expiry cancels request contexts, closes connections, and exits with
+failure. Tests cover validation, health, header limits, request draining,
+forced shutdown, and process startup; Linux additionally checks SIGTERM.
+Basic Linux CI is present; the full CI stage remains open until storage and
+mandatory PostgreSQL integration checks are implemented.
+See [ADR 0005](adr/0005-application-foundation.md) for decisions and limitations.
 
 ### 2. Probe execution and scheduling
 
