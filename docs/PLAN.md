@@ -81,6 +81,11 @@ sanitize logs and user-facing errors.
 
 Each independently reviewable increment uses a branch and PR. A stage may need
 several PRs; it is not complete until its acceptance criteria are demonstrated.
+Every increment also follows the documentation completion rules in
+[AGENTS.md](../AGENTS.md): update affected documentation in the same PR, record
+decisions covered by the ADR triggers, and report applicability and verification
+in the PR description. Check off work only after its acceptance criteria pass.
+The [ADR index](adr/README.md) maps the current design to its rationale.
 
 ### 1. Application foundation and monitor management
 
