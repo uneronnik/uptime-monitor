@@ -56,6 +56,7 @@ func TestProcessInvalidConfiguration(t *testing.T) {
 }
 
 func TestProcessBindFailure(t *testing.T) {
+	requireDatabase(t)
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -76,6 +77,7 @@ func TestProcessBindFailure(t *testing.T) {
 }
 
 func TestProcessLifecycle(t *testing.T) {
+	requireDatabase(t)
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -111,6 +113,15 @@ func TestProcessLifecycle(t *testing.T) {
 	if err != nil || res.StatusCode != 200 || string(body) != "{\"status\":\"ok\"}\n" {
 		t.Fatalf("health: %d %q %v", res.StatusCode, body, err)
 	}
+	res, err = client.Get("http://" + address + "/readyz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err = io.ReadAll(res.Body)
+	res.Body.Close()
+	if err != nil || res.StatusCode != 200 || string(body) != "{\"status\":\"ready\"}\n" {
+		t.Fatalf("readiness: %d %q %v", res.StatusCode, body, err)
+	}
 	if runtime.GOOS == "windows" {
 		return
 	} // Windows process.Signal cannot deliver console Ctrl+C.
@@ -126,5 +137,39 @@ func TestProcessLifecycle(t *testing.T) {
 	}
 	if !strings.Contains(string(remaining), "shutdown_completed") {
 		t.Fatalf("shutdown: %s", remaining)
+	}
+}
+
+func requireDatabase(t *testing.T) {
+	t.Helper()
+	dsn := os.Getenv("TEST_DATABASE_URL")
+	if dsn == "" {
+		if os.Getenv("CI") == "true" {
+			t.Fatal("TEST_DATABASE_URL required in CI")
+		}
+		t.Skip("set TEST_DATABASE_URL to a separate test database")
+	}
+	t.Setenv("DATABASE_URL", dsn)
+}
+
+func TestProcessDatabaseFailure(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	address := listener.Addr().String()
+	listener.Close()
+	cmd := process(t, map[string]string{"DATABASE_URL": "postgres://owner:secret@" + address + "/db?sslmode=disable", "HTTP_ADDR": "127.0.0.1:8080", "SHUTDOWN_TIMEOUT": "1s", "LOG_LEVEL": "INFO"})
+	output, err := cmd.CombinedOutput()
+	if err == nil || !strings.Contains(string(output), "database_unavailable") || strings.Contains(string(output), "secret") || strings.Contains(string(output), "http_started") {
+		t.Fatalf("missing or unsafe database startup failure: %q, %v", output, err)
+	}
+}
+
+func TestProcessRequiresDatabaseConfiguration(t *testing.T) {
+	cmd := process(t, map[string]string{"DATABASE_URL": "", "HTTP_ADDR": "127.0.0.1:8080", "SHUTDOWN_TIMEOUT": "1s", "LOG_LEVEL": "INFO"})
+	output, err := cmd.CombinedOutput()
+	if err == nil || !strings.Contains(string(output), "invalid_configuration") || !strings.Contains(string(output), "DATABASE_URL") {
+		t.Fatalf("missing database configuration accepted: %q, %v", output, err)
 	}
 }

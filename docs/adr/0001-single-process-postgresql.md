@@ -1,8 +1,9 @@
 # Single application process with durable PostgreSQL state
 
 Status: accepted for the initial MVP design; HTTP/logging foundation implemented
-under [ADR 0005](0005-application-foundation.md). Storage and background components
-remain pending.
+under [ADR 0005](0005-application-foundation.md). PostgreSQL connectivity and
+migrations are implemented under [ADR 0006](0006-postgresql-foundation.md).
+Monitor operations and background components remain pending.
 
 ## Context
 

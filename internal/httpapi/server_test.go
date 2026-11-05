@@ -37,12 +37,12 @@ func TestHealth(t *testing.T) {
 		{"POST", "/healthz", "", 405, ""},
 		{"GET", "/healthz", "unexpected", 413, ""},
 		{"GET", "/healthz/extra", "", 404, ""},
-		{"GET", "/readyz", "", 404, ""},
+		{"GET", "/readyz", "", 503, ""},
 		{"GET", "/api/monitors", "", 404, ""},
 	} {
 		t.Run(tt.method+tt.path+tt.body, func(t *testing.T) {
 			rec := httptest.NewRecorder()
-			Handler().ServeHTTP(rec, httptest.NewRequest(tt.method, tt.path, strings.NewReader(tt.body)))
+			Handler(nil).ServeHTTP(rec, httptest.NewRequest(tt.method, tt.path, strings.NewReader(tt.body)))
 			if rec.Code != tt.code {
 				t.Fatalf("status = %d, want %d", rec.Code, tt.code)
 			}
@@ -156,7 +156,7 @@ func TestHealthRejectsUnknownLengthBody(t *testing.T) {
 	request.ContentLength = -1
 	request.TransferEncoding = []string{"chunked"}
 	rec := httptest.NewRecorder()
-	Handler().ServeHTTP(rec, request)
+	Handler(nil).ServeHTTP(rec, request)
 	if rec.Code != http.StatusRequestEntityTooLarge {
 		t.Fatalf("status = %d", rec.Code)
 	}
@@ -172,7 +172,7 @@ func TestServeHeaderLimit(t *testing.T) {
 	defer cancel()
 	done := make(chan error, 1)
 	go func() {
-		done <- Serve(ctx, listener, time.Second, Handler(), slog.New(slog.NewTextHandler(io.Discard, nil)))
+		done <- Serve(ctx, listener, time.Second, Handler(nil), slog.New(slog.NewTextHandler(io.Discard, nil)))
 	}()
 	client := http.Client{Timeout: 3 * time.Second}
 	request, err := http.NewRequest("GET", "http://"+listener.Addr().String()+"/healthz", nil)

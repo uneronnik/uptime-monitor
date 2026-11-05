@@ -11,8 +11,26 @@ import (
 	"time"
 )
 
-func Handler() http.Handler {
+func Handler(ready func(context.Context) error) http.Handler {
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, r *http.Request) {
+		if r.ContentLength != 0 {
+			http.Error(w, "request body not allowed", http.StatusRequestEntityTooLarge)
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		defer cancel()
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "no-store")
+		status := "ready"
+		if ready == nil || ready(ctx) != nil {
+			status = "unavailable"
+			w.WriteHeader(http.StatusServiceUnavailable)
+		}
+		if r.Method != http.MethodHead {
+			io.WriteString(w, "{\"status\":\""+status+"\"}\n")
+		}
+	})
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		if r.ContentLength != 0 {
 			http.Error(w, "request body not allowed", http.StatusRequestEntityTooLarge)
