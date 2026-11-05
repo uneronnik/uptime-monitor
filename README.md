@@ -15,8 +15,9 @@ Install Go 1.27.0 and Docker with Compose. PostgreSQL 17.11 is pinned by image
 digest in Compose and CI. From the repository root, in PowerShell:
 
 ```powershell
-Copy-Item .env.example .env
-# Edit .env: replace POSTGRES_PASSWORD with your local password.
+if (!(Test-Path .env)) { Copy-Item .env.example .env }
+# For a new database, replace the placeholder password in .env.
+# Preserve existing database credentials when a volume already exists.
 docker compose up -d --wait db
 $dbCredential = Get-Credential -UserName uptime -Message 'Local PostgreSQL password from .env'
 $dbPassword = [uri]::EscapeDataString($dbCredential.GetNetworkCredential().Password)

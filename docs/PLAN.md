@@ -100,7 +100,7 @@ The [ADR index](adr/README.md) maps the current design to its rationale.
 - [ ] Add monitor storage operations alongside authenticated management.
 - [ ] Define owner authentication in an ADR; implement authenticated monitor
   create/read/update/pause/resume/delete endpoints with input and body limits.
-- [ ] Add CI with formatting, vet, tests, PostgreSQL integration tests, and race detection.
+- [x] Add CI with formatting, vet, tests, PostgreSQL integration tests, and race detection.
 
 Acceptance: invalid configuration fails safely; unauthorized requests are denied;
 CRUD and pause/resume persist across restart; migrations are repeatable without
