@@ -1,8 +1,9 @@
 # Uptime Monitor MVP
 
-Status: application foundation implemented. HTTP health, environment validation,
-structured logging, bounded HTTP handling, and graceful shutdown are available.
-Monitoring, storage, management, readiness, and delivery remain unimplemented.
+Status: application and PostgreSQL foundations implemented. HTTP health/readiness,
+environment validation, logging, bounded shutdown, a PostgreSQL pool, Compose,
+and explicit embedded SQL migrations are available. Management, probes,
+scheduling, incidents, and delivery remain unimplemented.
 
 ## Product scope
 
@@ -93,8 +94,10 @@ The [ADR index](adr/README.md) maps the current design to its rationale.
 
 - [x] Pin Go; add configuration validation, logging, health behavior, bounded
   request handling, and graceful shutdown using only the standard library.
-- [ ] Add dependency versions and readiness checks alongside PostgreSQL storage.
-- [ ] Add PostgreSQL, Compose, a standalone goose migration command, and storage.
+- [x] Pin dependency versions and add database-connectivity readiness checks.
+- [x] Add PostgreSQL, Compose, a standalone goose migration command, and the
+  initial monitor schema.
+- [ ] Add monitor storage operations alongside authenticated management.
 - [ ] Define owner authentication in an ADR; implement authenticated monitor
   create/read/update/pause/resume/delete endpoints with input and body limits.
 - [ ] Add CI with formatting, vet, tests, PostgreSQL integration tests, and race detection.
@@ -109,15 +112,37 @@ Implemented foundation contract: Go 1.27.0, `HTTP_ADDR` (default loopback port
 literal IPs or an empty host and ports 1–65535. Errors never echo input values.
 `GET /healthz` returns 200 JSON `{"status":"ok"}`; HEAD omits the body, unsupported
 methods return 405, and request bodies (including unknown-length bodies) return
-413. Unknown paths return 404. There is no readiness route yet.
+413. Unknown paths return 404.
 HTTP limits and executable commands are documented in the [README](../README.md).
 SIGINT/SIGTERM stop new connections and drain requests within the configured
 deadline; expiry cancels request contexts, closes connections, and exits with
 failure. Tests cover validation, health, header limits, request draining,
 forced shutdown, and process startup; Linux additionally checks SIGTERM.
-Basic Linux CI is present; the full CI stage remains open until storage and
-mandatory PostgreSQL integration checks are implemented.
+Linux CI now provisions PostgreSQL for mandatory integration/process checks.
 See [ADR 0005](adr/0005-application-foundation.md) for decisions and limitations.
+
+Implemented PostgreSQL contract: DATABASE_URL is required, valid, and never
+echoed; startup pings within 5 seconds before opening HTTP. The pool has at most
+10 connections. GET/HEAD /readyz pings PostgreSQL with a 2-second maximum and
+returns 200 ready or 503 unavailable JSON, without driver details; it does not
+validate schema versions. Health stays independent. Both routes reject bodies.
+The application does not apply migrations or expose management endpoints.
+
+cmd/migrate applies pending embedded goose SQL with a one-minute work deadline,
+transactional migrations, session advisory locking, and bounded unlock cleanup.
+No destructive command is exposed. The initial monitors table has identity ID,
+bounded nonempty name/URL, status 100–599 (default 200), interval >=30 seconds
+(default 60), positive timeout below interval (default 5000 ms), paused=false,
+and timestamps. Exact representation limits are in
+[ADR 0006](adr/0006-postgresql-foundation.md). Destination validation and all
+monitor operations remain pending; SQL URL constraints are not an SSRF policy.
+
+Integration tests use a separate database and random isolated schemas. They
+cover migration reapplication with preserved rows, reconnection, defaults and
+constraints, transactional rollback/retry, concurrent migrations, and lock
+cancellation. A missing TEST_DATABASE_URL skips locally and fails in CI.
+Stage 1 remains incomplete until authenticated CRUD and pause/resume persistence
+meet the full acceptance criteria.
 
 ### 2. Probe execution and scheduling
 

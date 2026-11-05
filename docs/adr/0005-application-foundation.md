@@ -2,6 +2,10 @@
 
 Status: accepted; implemented for the application foundation.
 
+Partially superseded by [ADR 0006](0006-postgresql-foundation.md): the application
+now requires PostgreSQL, adds pinned dependencies, and exposes readiness. The
+original increment and its reasons below are retained as historical context.
+
 ## Context
 
 The first executable increment needs reproducible builds, a small operational
